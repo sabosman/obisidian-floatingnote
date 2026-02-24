@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.js
+!esbuild.config.mjs
+!jest.config.js
+!main.js
+.DS_Store
+.env
+.idea/
+.vscode/
+build/

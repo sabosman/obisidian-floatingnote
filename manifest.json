@@ -1,0 +1,10 @@
+{
+  "id": "floating-quick-note",
+  "name": "Floating Quick Note",
+  "version": "1.0.0",
+  "minAppVersion": "1.1.9",
+  "description": "Open a floating always-on-top note window for quick notes.",
+  "author": "Sander Bosmans",
+  "authorUrl": "",
+  "isDesktopOnly": true
+}
