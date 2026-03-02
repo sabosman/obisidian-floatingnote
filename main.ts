@@ -26,6 +26,33 @@ interface FloatingNoteSettings {
   opacity: number;
 }
 
+interface FloatingWindowHandle {
+  setAlwaysOnTop(flag: boolean, level?: string): void;
+  setVisibleOnAllWorkspaces(flag: boolean): void;
+  setOpacity(opacity: number): void;
+  setTitle?(title: string): void;
+}
+
+interface ElectronRemoteModule {
+  BrowserWindow: {
+    getFocusedWindow(): FloatingWindowHandle | null;
+  };
+}
+
+type ElectronModuleWithRemote = {
+  remote?: ElectronRemoteModule;
+};
+
+interface ElectronRemoteImport {
+  BrowserWindow?: ElectronRemoteModule["BrowserWindow"];
+  default?: {
+    BrowserWindow?: ElectronRemoteModule["BrowserWindow"];
+  };
+}
+
+const runtimeRequire: NodeJS.Require | null =
+  typeof require === "function" ? require : null;
+
 const LEGACY_DEFAULT_SETTINGS = {
   noteFolder: "Call Notes",
   noteTitleFormat: "Call - YYYY-MM-DD HH[h]mm",
@@ -37,7 +64,7 @@ const DEFAULT_SETTINGS: FloatingNoteSettings = {
   noteTitleFormat: "[Quick] - YYYY-MM-DD HH[h]mm",
   windowWidth: 480,
   windowHeight: 600,
-  defaultNoteContent: "# 📌 Quick Notes\n\n**Date:** {{date}}\n\n---\n\n",
+  defaultNoteContent: "# Quick Notes\n\n**Date:** {{date}}\n\n---\n\n",
   alwaysOnTop: true,
   opacity: 100,
 };
@@ -50,21 +77,21 @@ export default class FloatingNotePlugin extends Plugin {
 
     // Command: Open a fresh floating quick note (new file each time)
     this.addCommand({
-      id: "open-floating-quick-note",
-      name: "Open new floating quick note",
+      id: "open-new-note",
+      name: "Open new note",
       callback: () => this.openFloatingNote(true),
     });
 
     // Command: Open today's quick note in a floating window (reuse same file)
     this.addCommand({
-      id: "open-todays-floating-quick-note",
+      id: "open-todays-note",
       name: "Open today's quick note (floating)",
       callback: () => this.openFloatingNote(false),
     });
 
     // Ribbon icon for quick access
     this.addRibbonIcon("pin", "Open new floating quick note", () => {
-      this.openFloatingNote(true);
+      void this.openFloatingNote(true);
     });
 
     // Settings tab
@@ -77,7 +104,7 @@ export default class FloatingNotePlugin extends Plugin {
       : await this.getOrCreateTodaysQuickNote();
 
     if (!file) {
-      new Notice("❌ Failed to create/find quick note.");
+      new Notice("Failed to create or find a quick note.");
       return;
     }
 
@@ -103,31 +130,19 @@ export default class FloatingNotePlugin extends Plugin {
     if (!popoutDoc) return;
 
     const root = popoutDoc.documentElement;
-    root.style.setProperty("--titlebar-background", "var(--background-secondary-alt)");
-    root.style.setProperty(
-      "--titlebar-background-focused",
-      "var(--background-secondary-alt)"
-    );
+    root.setCssProps({
+      "--titlebar-background": "var(--background-secondary-alt)",
+      "--titlebar-background-focused": "var(--background-secondary-alt)",
+    });
   }
 
   private applyWindowSettings() {
     try {
       // Access Electron's remote API (available in Obsidian's Electron context)
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { remote } = require("electron") as typeof import("electron") & {
-        remote: {
-          BrowserWindow: {
-            getFocusedWindow(): {
-              setAlwaysOnTop(flag: boolean, level?: string): void;
-              setVisibleOnAllWorkspaces(flag: boolean): void;
-              setOpacity(opacity: number): void;
-              setTitle(title: string): void;
-            } | null;
-          };
-        };
-      };
-
-      const win = remote?.BrowserWindow?.getFocusedWindow();
+      const electronModule = runtimeRequire?.("electron") as ElectronModuleWithRemote | undefined;
+      const win =
+        electronModule?.remote?.BrowserWindow.getFocusedWindow() ??
+        null;
 
       if (win) {
         if (this.settings.alwaysOnTop) {
@@ -141,12 +156,12 @@ export default class FloatingNotePlugin extends Plugin {
           win.setOpacity(this.settings.opacity / 100);
         }
 
-        win.setTitle("📌 Quick Notes");
+        win.setTitle?.("Quick notes");
       } else {
         // Fallback: try @electron/remote (Obsidian 1.x+)
         this.tryElectronRemote();
       }
-    } catch (e) {
+    } catch {
       // Try the newer @electron/remote approach
       this.tryElectronRemote();
     }
@@ -154,18 +169,14 @@ export default class FloatingNotePlugin extends Plugin {
 
   private tryElectronRemote() {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { BrowserWindow } = require("@electron/remote") as {
-        BrowserWindow: {
-          getFocusedWindow(): {
-            setAlwaysOnTop(flag: boolean, level?: string): void;
-            setVisibleOnAllWorkspaces(flag: boolean): void;
-            setOpacity(opacity: number): void;
-          } | null;
-        };
-      };
+      if (!runtimeRequire) {
+        throw new Error("Runtime require is not available.");
+      }
 
-      const win = BrowserWindow.getFocusedWindow();
+      const electronRemote = runtimeRequire("@electron/remote") as ElectronRemoteImport;
+      const browserWindow =
+        electronRemote.BrowserWindow ?? electronRemote.default?.BrowserWindow ?? null;
+      const win = browserWindow?.getFocusedWindow() ?? null;
       if (win) {
         if (this.settings.alwaysOnTop) {
           win.setAlwaysOnTop(true, "floating");
@@ -177,7 +188,7 @@ export default class FloatingNotePlugin extends Plugin {
       }
     } catch (err) {
       new Notice(
-        "⚠️ Could not set always-on-top. Your Obsidian version may not support this.",
+        "Could not set always on top. Your Obsidian version may not support this.",
         5000
       );
       console.error("FloatingNote: Electron remote error", err);
@@ -187,7 +198,6 @@ export default class FloatingNotePlugin extends Plugin {
   private async createNewQuickNote(): Promise<TFile | null> {
     const folder = this.settings.noteFolder;
     const title = moment().format(this.settings.noteTitleFormat);
-    const path = folder ? `${folder}/${title}.md` : `${title}.md`;
     const content = this.settings.defaultNoteContent.replace(
       "{{date}}",
       moment().format("YYYY-MM-DD HH:mm")
@@ -208,7 +218,7 @@ export default class FloatingNotePlugin extends Plugin {
         // File already exists – try the next suffix.
       }
     }
-    new Notice("❌ Could not create a unique note file after many attempts.");
+    new Notice("Could not create a unique note file after several attempts.");
     return null;
   }
 
@@ -289,7 +299,7 @@ class FloatingNoteSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "Floating Quick Note Settings" });
+    new Setting(containerEl).setName("Floating quick note settings").setHeading();
 
     // ── Note settings ──────────────────────────────────────────────────────
 
@@ -298,7 +308,7 @@ class FloatingNoteSettingTab extends PluginSettingTab {
       .setDesc("Folder where quick notes are saved. Leave blank for vault root.")
       .addText((text) =>
         text
-          .setPlaceholder("Quick Notes")
+          .setPlaceholder("Quick notes")
           .setValue(this.plugin.settings.noteFolder)
           .onChange(async (value) => {
             this.plugin.settings.noteFolder = value;
@@ -309,11 +319,11 @@ class FloatingNoteSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("New note title format")
       .setDesc(
-        "Moment.js date format for new notes opened via 'Open new floating quick note'. Wrap plain text in [] (e.g. [Note])."
+        "Moment.js date format for new notes opened via 'Open new note'. Wrap plain text in [] (e.g. [note])."
       )
       .addText((text) =>
         text
-          .setPlaceholder("[Quick] - YYYY-MM-DD HH[h]mm")
+          .setPlaceholder("[quick] - YYYY-MM-DD HH[h]mm")
           .setValue(this.plugin.settings.noteTitleFormat)
           .onChange(async (value) => {
             this.plugin.settings.noteTitleFormat = value;
@@ -335,11 +345,11 @@ class FloatingNoteSettingTab extends PluginSettingTab {
 
     // ── Window settings ─────────────────────────────────────────────────────
 
-    containerEl.createEl("h3", { text: "Window" });
+    new Setting(containerEl).setName("Window").setHeading();
 
     new Setting(containerEl)
       .setName("Always on top")
-      .setDesc("Keep the floating note window above all other windows.")
+      .setDesc("Keep the floating note window above other windows.")
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.alwaysOnTop)

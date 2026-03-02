@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "lint": "eslint . --ext .ts",
     "test": "jest"
   },
   "devDependencies": {
@@ -16,6 +17,7 @@
     "@typescript-eslint/parser": "5.29.0",
     "builtin-modules": "3.3.0",
     "electron": "^40.6.0",
+    "eslint": "^8.57.1",
     "esbuild": "0.17.3",
     "jest": "^30.2.0",
     "obsidian": "latest",

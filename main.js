@@ -28,6 +28,7 @@ __export(main_exports, {
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
+var runtimeRequire = typeof require === "function" ? require : null;
 var LEGACY_DEFAULT_SETTINGS = {
   noteFolder: "Call Notes",
   noteTitleFormat: "Call - YYYY-MM-DD HH[h]mm",
@@ -38,7 +39,7 @@ var DEFAULT_SETTINGS = {
   noteTitleFormat: "[Quick] - YYYY-MM-DD HH[h]mm",
   windowWidth: 480,
   windowHeight: 600,
-  defaultNoteContent: "# \u{1F4CC} Quick Notes\n\n**Date:** {{date}}\n\n---\n\n",
+  defaultNoteContent: "# Quick Notes\n\n**Date:** {{date}}\n\n---\n\n",
   alwaysOnTop: true,
   opacity: 100
 };
@@ -46,24 +47,24 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
   async onload() {
     await this.loadSettings();
     this.addCommand({
-      id: "open-floating-quick-note",
-      name: "Open new floating quick note",
+      id: "open-new-note",
+      name: "Open new note",
       callback: () => this.openFloatingNote(true)
     });
     this.addCommand({
-      id: "open-todays-floating-quick-note",
+      id: "open-todays-note",
       name: "Open today's quick note (floating)",
       callback: () => this.openFloatingNote(false)
     });
     this.addRibbonIcon("pin", "Open new floating quick note", () => {
-      this.openFloatingNote(true);
+      void this.openFloatingNote(true);
     });
     this.addSettingTab(new FloatingNoteSettingTab(this.app, this));
   }
   async openFloatingNote(createNew) {
     const file = createNew ? await this.createNewQuickNote() : await this.getOrCreateTodaysQuickNote();
     if (!file) {
-      new import_obsidian.Notice("\u274C Failed to create/find quick note.");
+      new import_obsidian.Notice("Failed to create or find a quick note.");
       return;
     }
     const leaf = this.app.workspace.openPopoutLeaf({
@@ -84,17 +85,16 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
     if (!popoutDoc)
       return;
     const root = popoutDoc.documentElement;
-    root.style.setProperty("--titlebar-background", "var(--background-secondary-alt)");
-    root.style.setProperty(
-      "--titlebar-background-focused",
-      "var(--background-secondary-alt)"
-    );
+    root.setCssProps({
+      "--titlebar-background": "var(--background-secondary-alt)",
+      "--titlebar-background-focused": "var(--background-secondary-alt)"
+    });
   }
   applyWindowSettings() {
-    var _a;
+    var _a, _b, _c;
     try {
-      const { remote } = require("electron");
-      const win = (_a = remote == null ? void 0 : remote.BrowserWindow) == null ? void 0 : _a.getFocusedWindow();
+      const electronModule = runtimeRequire == null ? void 0 : runtimeRequire("electron");
+      const win = (_b = (_a = electronModule == null ? void 0 : electronModule.remote) == null ? void 0 : _a.BrowserWindow.getFocusedWindow()) != null ? _b : null;
       if (win) {
         if (this.settings.alwaysOnTop) {
           win.setAlwaysOnTop(true, "floating");
@@ -103,7 +103,7 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
         if (this.settings.opacity < 100) {
           win.setOpacity(this.settings.opacity / 100);
         }
-        win.setTitle("\u{1F4CC} Quick Notes");
+        (_c = win.setTitle) == null ? void 0 : _c.call(win, "Quick notes");
       } else {
         this.tryElectronRemote();
       }
@@ -112,9 +112,14 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
     }
   }
   tryElectronRemote() {
+    var _a, _b, _c, _d;
     try {
-      const { BrowserWindow } = require("@electron/remote");
-      const win = BrowserWindow.getFocusedWindow();
+      if (!runtimeRequire) {
+        throw new Error("Runtime require is not available.");
+      }
+      const electronRemote = runtimeRequire("@electron/remote");
+      const browserWindow = (_c = (_b = electronRemote.BrowserWindow) != null ? _b : (_a = electronRemote.default) == null ? void 0 : _a.BrowserWindow) != null ? _c : null;
+      const win = (_d = browserWindow == null ? void 0 : browserWindow.getFocusedWindow()) != null ? _d : null;
       if (win) {
         if (this.settings.alwaysOnTop) {
           win.setAlwaysOnTop(true, "floating");
@@ -126,7 +131,7 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
       }
     } catch (err) {
       new import_obsidian.Notice(
-        "\u26A0\uFE0F Could not set always-on-top. Your Obsidian version may not support this.",
+        "Could not set always on top. Your Obsidian version may not support this.",
         5e3
       );
       console.error("FloatingNote: Electron remote error", err);
@@ -135,7 +140,6 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
   async createNewQuickNote() {
     const folder = this.settings.noteFolder;
     const title = (0, import_obsidian.moment)().format(this.settings.noteTitleFormat);
-    const path = folder ? `${folder}/${title}.md` : `${title}.md`;
     const content = this.settings.defaultNoteContent.replace(
       "{{date}}",
       (0, import_obsidian.moment)().format("YYYY-MM-DD HH:mm")
@@ -150,7 +154,7 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
       } catch (e) {
       }
     }
-    new import_obsidian.Notice("\u274C Could not create a unique note file after many attempts.");
+    new import_obsidian.Notice("Could not create a unique note file after several attempts.");
     return null;
   }
   async getOrCreateTodaysQuickNote() {
@@ -216,17 +220,17 @@ var FloatingNoteSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Floating Quick Note Settings" });
+    new import_obsidian.Setting(containerEl).setName("Floating quick note settings").setHeading();
     new import_obsidian.Setting(containerEl).setName("Notes folder").setDesc("Folder where quick notes are saved. Leave blank for vault root.").addText(
-      (text) => text.setPlaceholder("Quick Notes").setValue(this.plugin.settings.noteFolder).onChange(async (value) => {
+      (text) => text.setPlaceholder("Quick notes").setValue(this.plugin.settings.noteFolder).onChange(async (value) => {
         this.plugin.settings.noteFolder = value;
         await this.plugin.saveSettings();
       })
     );
     new import_obsidian.Setting(containerEl).setName("New note title format").setDesc(
-      "Moment.js date format for new notes opened via 'Open new floating quick note'. Wrap plain text in [] (e.g. [Note])."
+      "Moment.js date format for new notes opened via 'Open new note'. Wrap plain text in [] (e.g. [note])."
     ).addText(
-      (text) => text.setPlaceholder("[Quick] - YYYY-MM-DD HH[h]mm").setValue(this.plugin.settings.noteTitleFormat).onChange(async (value) => {
+      (text) => text.setPlaceholder("[quick] - YYYY-MM-DD HH[h]mm").setValue(this.plugin.settings.noteTitleFormat).onChange(async (value) => {
         this.plugin.settings.noteTitleFormat = value;
         await this.plugin.saveSettings();
       })
@@ -237,8 +241,8 @@ var FloatingNoteSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    containerEl.createEl("h3", { text: "Window" });
-    new import_obsidian.Setting(containerEl).setName("Always on top").setDesc("Keep the floating note window above all other windows.").addToggle(
+    new import_obsidian.Setting(containerEl).setName("Window").setHeading();
+    new import_obsidian.Setting(containerEl).setName("Always on top").setDesc("Keep the floating note window above other windows.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.alwaysOnTop).onChange(async (value) => {
         this.plugin.settings.alwaysOnTop = value;
         await this.plugin.saveSettings();

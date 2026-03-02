@@ -5,13 +5,13 @@
  * run in plain Node without any browser or Obsidian runtime.
  */
 
-import { App, Plugin, TFile, Notice } from "obsidian";
+import { App, TFile } from "obsidian";
 import { remote, mockWin } from "../__mocks__/electron";
 import { BrowserWindow as remoteBrowserWindow, mockRemoteWin } from "../__mocks__/electronRemote";
 
 // We import the plugin class *after* jest module mocks are in place.
 // ts-jest will pick up jest.config.js moduleNameMapper automatically.
-import FloatingNotePlugin from "../main";
+import FloatingNotePlugin from "../main.ts";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -87,7 +87,7 @@ describe("loadSettings", () => {
         });
         await plugin.loadSettings();
         expect(plugin.settings.defaultNoteContent).toBe(
-            "# 📌 Quick Notes\n\n**Date:** {{date}}\n\n---\n\n"
+            "# Quick Notes\n\n**Date:** {{date}}\n\n---\n\n"
         );
     });
 
@@ -350,13 +350,13 @@ describe("applyWindowSettings (Electron remote)", () => {
         expect(mockWin.setOpacity).not.toHaveBeenCalled();
     });
 
-    it("sets the title to '📌 Quick Notes'", async () => {
+    it("sets the title to 'Quick notes'", async () => {
         const plugin = makePlugin();
         await plugin.loadSettings();
 
         (plugin as unknown as { applyWindowSettings(): void }).applyWindowSettings();
 
-        expect(mockWin.setTitle).toHaveBeenCalledWith("📌 Quick Notes");
+        expect(mockWin.setTitle).toHaveBeenCalledWith("Quick notes");
     });
 
     it("falls back to @electron/remote when primary API returns null window", async () => {

@@ -97,7 +97,9 @@ export class PluginSettingTab {
         this.app = app;
         this.plugin = plugin;
     }
-    display() { }
+    display() {
+        return;
+    }
 }
 
 // ── Setting stub ──────────────────────────────────────────────────────────
@@ -108,5 +110,7 @@ export class Setting {
     addTextArea = jest.fn().mockReturnThis();
     addToggle = jest.fn().mockReturnThis();
     addSlider = jest.fn().mockReturnThis();
-    constructor(_containerEl: unknown) { }
+    constructor(_containerEl: unknown) {
+        void _containerEl;
+    }
 }

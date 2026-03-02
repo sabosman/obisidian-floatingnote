@@ -16,7 +16,7 @@ module.exports = {
           // Override options incompatible with ts-jest / CommonJS
           module: "CommonJS",
           verbatimModuleSyntax: false,
-          allowImportingTsExtensions: false,
+          allowImportingTsExtensions: true,
           moduleResolution: "node",
           noEmit: false,
         },
