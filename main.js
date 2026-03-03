@@ -220,7 +220,7 @@ var FloatingNoteSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian.Setting(containerEl).setName("Floating quick note settings").setHeading();
+    new import_obsidian.Setting(containerEl).setName("Note preferences").setHeading();
     new import_obsidian.Setting(containerEl).setName("Notes folder").setDesc("Folder where quick notes are saved. Leave blank for vault root.").addText(
       (text) => text.setPlaceholder("Quick notes").setValue(this.plugin.settings.noteFolder).onChange(async (value) => {
         this.plugin.settings.noteFolder = value;
@@ -228,9 +228,9 @@ var FloatingNoteSettingTab = class extends import_obsidian.PluginSettingTab {
       })
     );
     new import_obsidian.Setting(containerEl).setName("New note title format").setDesc(
-      "Moment.js date format for new notes opened via 'Open new note'. Wrap plain text in [] (e.g. [note])."
+      "Moment.js date format for new notes opened via 'Open new note'. Wrap plain text in [] (e.g. [Note])."
     ).addText(
-      (text) => text.setPlaceholder("[quick] - YYYY-MM-DD HH[h]mm").setValue(this.plugin.settings.noteTitleFormat).onChange(async (value) => {
+      (text) => text.setPlaceholder("[Quick] - YYYY-MM-DD HH[h]mm").setValue(this.plugin.settings.noteTitleFormat).onChange(async (value) => {
         this.plugin.settings.noteTitleFormat = value;
         await this.plugin.saveSettings();
       })

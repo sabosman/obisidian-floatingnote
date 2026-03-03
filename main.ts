@@ -299,7 +299,7 @@ class FloatingNoteSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    new Setting(containerEl).setName("Floating quick note settings").setHeading();
+    new Setting(containerEl).setName("Note preferences").setHeading();
 
     // ── Note settings ──────────────────────────────────────────────────────
 
@@ -319,11 +319,11 @@ class FloatingNoteSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("New note title format")
       .setDesc(
-        "Moment.js date format for new notes opened via 'Open new note'. Wrap plain text in [] (e.g. [note])."
+        "Moment.js date format for new notes opened via 'Open new note'. Wrap plain text in [] (e.g. [Note])."
       )
       .addText((text) =>
         text
-          .setPlaceholder("[quick] - YYYY-MM-DD HH[h]mm")
+          .setPlaceholder("[Quick] - YYYY-MM-DD HH[h]mm")
           .setValue(this.plugin.settings.noteTitleFormat)
           .onChange(async (value) => {
             this.plugin.settings.noteTitleFormat = value;
