@@ -319,7 +319,7 @@ class FloatingNoteSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("New note title format")
       .setDesc(
-        "Moment.js date format for new notes opened via 'Open new note'. Wrap plain text in [] (e.g. [Note])."
+        "Moment.js date format for new notes opened via 'Open new note'. Wrap plain text in square brackets (e.g. [Note])."
       )
       .addText((text) =>
         text

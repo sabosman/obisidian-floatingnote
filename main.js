@@ -228,7 +228,7 @@ var FloatingNoteSettingTab = class extends import_obsidian.PluginSettingTab {
       })
     );
     new import_obsidian.Setting(containerEl).setName("New note title format").setDesc(
-      "Moment.js date format for new notes opened via 'Open new note'. Wrap plain text in [] (e.g. [Note])."
+      "Moment.js date format for new notes opened via 'Open new note'. Wrap plain text in square brackets (e.g. [Note])."
     ).addText(
       (text) => text.setPlaceholder("[Quick] - YYYY-MM-DD HH[h]mm").setValue(this.plugin.settings.noteTitleFormat).onChange(async (value) => {
         this.plugin.settings.noteTitleFormat = value;
