@@ -5,7 +5,6 @@ Floating Quick Note is an Obsidian plugin that lets you open a small, detached n
 ## What it does
 
 - Opens a floating window that stays visible even when you use other apps like Meet, Zoom or Teams.
-- You can choose between opening a new note every time or reusing a single note for the whole day.
 - Comes with a button in the sidebar for quick access.
 - You can customize the window size, transparency, and where your notes are saved.
 
