@@ -11,7 +11,7 @@ Floating Quick Note is an Obsidian plugin that lets you open a small, detached n
 
 ## How to use it
 
-1. Click the pin icon in the sidebar to open today's quick note.
+1. Click the pin icon in the sidebar to open a new quick note.
 2. Use the command palette (Cmd/Ctrl + P) and search for "Floating Quick Note" to open a new one.
 3. You can also set up a keyboard shortcut in the Obsidian settings if you use it often.
 
@@ -27,6 +27,8 @@ You can find the settings for this plugin under **Settings -> Floating Quick Not
 
 ## Installation
 
+Requires Obsidian Desktop 1.4.0 or newer.
+
 ### From the Obsidian Community Store
 1. Open Obsidian and go to **Settings**.
 2. Select **Community plugins**.
@@ -37,3 +39,22 @@ You can find the settings for this plugin under **Settings -> Floating Quick Not
 1. Create a folder named `floating-quick-note` in your vault's `.obsidian/plugins/` directory.
 2. Copy the `main.js` and `manifest.json` files into that folder.
 3. Enable the plugin in the Obsidian settings.
+
+## Releasing
+
+Update `package.json`, `manifest.json`, and `versions.json` together, run
+`npm ci --ignore-scripts`, `npm run lint`, `npm test -- --runInBand`, and
+`npm run build`, then commit the updated source and `main.js`.
+
+Push a tag matching the version exactly (for example, `1.0.1`, without a `v`
+prefix). The release workflow builds from that tag, attests `main.js` and
+`manifest.json`, and uploads those exact files to a draft GitHub release.
+Review and publish the draft before asking the Obsidian reviewer to recheck it.
+Do not replace those assets with a local build: the attestation covers their
+exact contents. Existing `1.0.0` assets are not changed by this workflow.
+
+Verify a downloaded release asset with:
+
+```sh
+gh attestation verify main.js --repo sabosman/obisidian-floatingnote
+```

@@ -1,6 +1,6 @@
 {
   "name": "floating-quick-note",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "MIT",
   "description": "Obsidian plugin for always-on-top floating quick notes",
   "main": "main.js",
@@ -15,7 +15,6 @@
     "@types/node": "^16.11.6",
     "@typescript-eslint/eslint-plugin": "5.29.0",
     "@typescript-eslint/parser": "5.29.0",
-    "builtin-modules": "3.3.0",
     "electron": "^40.6.0",
     "eslint": "^8.57.1",
     "esbuild": "0.17.3",

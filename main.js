@@ -74,7 +74,7 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
       }
     });
     await leaf.openFile(file, { active: true });
-    setTimeout(() => {
+    activeWindow.setTimeout(() => {
       this.lightenPopoutHeaderBar(leaf);
       this.applyWindowSettings();
     }, 200);
@@ -182,7 +182,27 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
   }
   async loadSettings() {
     const savedData = await this.loadData();
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, savedData);
+    this.settings = { ...DEFAULT_SETTINGS };
+    if (savedData && typeof savedData === "object" && !Array.isArray(savedData)) {
+      const data = savedData;
+      for (const key of ["noteFolder", "noteTitleFormat", "defaultNoteContent"]) {
+        if (typeof data[key] === "string")
+          this.settings[key] = data[key];
+      }
+      if (typeof data.alwaysOnTop === "boolean") {
+        this.settings.alwaysOnTop = data.alwaysOnTop;
+      }
+      for (const [key, min, max] of [
+        ["windowWidth", 300, 1200],
+        ["windowHeight", 200, 1e3],
+        ["opacity", 30, 100]
+      ]) {
+        const value = data[key];
+        if (typeof value === "number" && Number.isFinite(value)) {
+          this.settings[key] = Math.min(max, Math.max(min, value));
+        }
+      }
+    }
     let migrated = false;
     if (this.settings.noteFolder === LEGACY_DEFAULT_SETTINGS.noteFolder) {
       this.settings.noteFolder = DEFAULT_SETTINGS.noteFolder;

@@ -2,6 +2,7 @@
 module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
+  setupFilesAfterEnv: ["<rootDir>/tests/setup.ts"],
   roots: ["<rootDir>/tests"],
   moduleNameMapper: {
     "^obsidian$": "<rootDir>/__mocks__/obsidian.ts",

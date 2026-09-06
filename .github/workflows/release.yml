@@ -1,0 +1,49 @@
+name: Build and attest release
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Check release version
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const versions = JSON.parse(fs.readFileSync('versions.json', 'utf8'));
+          if (process.env.GITHUB_REF_NAME !== manifest.version || pkg.version !== manifest.version || versions[manifest.version] !== manifest.minAppVersion) {
+            throw new Error('Tag, package, manifest and compatibility versions must match.');
+          }
+          NODE
+      - run: npm ci --ignore-scripts
+      - run: npm run lint
+      - run: npm test -- --runInBand
+      - run: npm run build
+      - name: Attest release assets
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+      - name: Create draft release with the attested assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release create "$RELEASE_TAG" main.js manifest.json --verify-tag --draft --title "$RELEASE_TAG" --generate-notes
