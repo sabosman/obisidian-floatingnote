@@ -33,7 +33,7 @@ export class WorkspaceLeaf {
         containerEl: {
             ownerDocument: {
                 documentElement: {
-                    style: { setProperty: jest.fn() },
+                    setCssProps: jest.fn(),
                 },
             },
         },
@@ -105,6 +105,7 @@ export class PluginSettingTab {
 // ── Setting stub ──────────────────────────────────────────────────────────
 export class Setting {
     setName = jest.fn().mockReturnThis();
+    setHeading = jest.fn().mockReturnThis();
     setDesc = jest.fn().mockReturnThis();
     addText = jest.fn().mockReturnThis();
     addTextArea = jest.fn().mockReturnThis();

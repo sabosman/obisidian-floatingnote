@@ -32,6 +32,27 @@ function makePlugin(): FloatingNotePlugin {
 // ── loadSettings ───────────────────────────────────────────────────────────
 
 describe("loadSettings", () => {
+    it("ignores malformed saved fields and clamps window settings", async () => {
+        const plugin = makePlugin();
+        (plugin as unknown as { _setSavedData: (d: object) => void })._setSavedData({
+            noteFolder: 42,
+            noteTitleFormat: null,
+            defaultNoteContent: false,
+            alwaysOnTop: "false",
+            windowWidth: -10,
+            windowHeight: 5000,
+            opacity: NaN,
+        });
+        await plugin.loadSettings();
+        expect(plugin.settings.noteFolder).toBe("Quick Notes");
+        expect(plugin.settings.noteTitleFormat).toBe("[Quick] - YYYY-MM-DD HH[h]mm");
+        expect(plugin.settings.defaultNoteContent).toContain("{{date}}");
+        expect(plugin.settings.alwaysOnTop).toBe(true);
+        expect(plugin.settings.windowWidth).toBe(300);
+        expect(plugin.settings.windowHeight).toBe(1000);
+        expect(plugin.settings.opacity).toBe(100);
+    });
+
     it("applies DEFAULT_SETTINGS when no saved data exists", async () => {
         const plugin = makePlugin();
         await plugin.loadSettings();
@@ -294,6 +315,24 @@ describe("openFloatingNote", () => {
         expect(plugin.app.workspace.openPopoutLeaf).toHaveBeenCalledWith({
             size: { width: 600, height: 700 },
         });
+    });
+
+    it("uses the active window timer and styles the new popout after opening", async () => {
+        const plugin = makePlugin();
+        await plugin.loadSettings();
+        plugin.settings.noteFolder = "";
+        (plugin.app.vault.create as jest.Mock).mockResolvedValueOnce(mkTFile("note.md"));
+        const timer = jest.spyOn(activeWindow, "setTimeout");
+        await plugin.openFloatingNote(true);
+        expect(timer).toHaveBeenCalledWith(expect.any(Function), 200);
+        const leaf = (plugin.app.workspace.openPopoutLeaf as jest.Mock).mock.results[0].value;
+        expect(leaf.view.containerEl.ownerDocument.documentElement.setCssProps).not.toHaveBeenCalled();
+        jest.advanceTimersByTime(200);
+        expect(leaf.view.containerEl.ownerDocument.documentElement.setCssProps).toHaveBeenCalledWith({
+            "--titlebar-background": "var(--background-secondary-alt)",
+            "--titlebar-background-focused": "var(--background-secondary-alt)",
+        });
+        timer.mockRestore();
     });
 });
 
