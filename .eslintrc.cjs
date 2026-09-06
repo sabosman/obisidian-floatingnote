@@ -23,6 +23,10 @@ module.exports = {
       },
       rules: {
         "@typescript-eslint/no-unsafe-assignment": "error",
+        "@typescript-eslint/no-unsafe-call": "error",
+        "@typescript-eslint/no-unsafe-member-access": "error",
+        "@typescript-eslint/no-unsafe-argument": "error",
+        "@typescript-eslint/no-redundant-type-constituents": "error",
         "@typescript-eslint/no-floating-promises": "error",
       },
     },
