@@ -11,7 +11,7 @@ import { BrowserWindow as remoteBrowserWindow, mockRemoteWin } from "../__mocks_
 
 // We import the plugin class *after* jest module mocks are in place.
 // ts-jest will pick up jest.config.js moduleNameMapper automatically.
-import FloatingNotePlugin from "../main.ts";
+import FloatingNotePlugin, { FloatingNoteSettingTab } from "../main.ts";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -30,6 +30,31 @@ function makePlugin(): FloatingNotePlugin {
 }
 
 // ── loadSettings ───────────────────────────────────────────────────────────
+
+describe("settings compatibility", () => {
+    it("exposes every saved setting for search without reading or writing storage", async () => {
+        const plugin = makePlugin();
+        await plugin.loadSettings();
+        const load = jest.spyOn(plugin, "loadData");
+        const save = jest.spyOn(plugin, "saveData");
+        const tab = new FloatingNoteSettingTab(plugin.app, plugin);
+        const groups = tab.getSettingDefinitions();
+        expect(groups.map(group => group.heading)).toEqual(["Note preferences", "Window"]);
+        const controls = groups.flatMap(group => group.items.map(item => item.control));
+        expect(controls.map(control => control.key).sort()).toEqual(Object.keys(plugin.settings).sort());
+        for (const control of controls) {
+            if (control.type === "slider") {
+                const value = plugin.settings[control.key as "windowWidth" | "windowHeight" | "opacity"];
+                expect(value).toBeGreaterThanOrEqual(control.min);
+                expect(value).toBeLessThanOrEqual(control.max);
+            }
+        }
+        expect(load).not.toHaveBeenCalled();
+        expect(save).not.toHaveBeenCalled();
+        // Pre-1.13 Obsidian still renders through display().
+        expect(() => tab.display()).not.toThrow();
+    });
+});
 
 describe("loadSettings", () => {
     it("ignores malformed saved fields and clamps window settings", async () => {
@@ -317,12 +342,12 @@ describe("openFloatingNote", () => {
         });
     });
 
-    it("uses the active window timer and styles the new popout after opening", async () => {
+    it("uses the window timer and styles the new popout after opening", async () => {
         const plugin = makePlugin();
         await plugin.loadSettings();
         plugin.settings.noteFolder = "";
         (plugin.app.vault.create as jest.Mock).mockResolvedValueOnce(mkTFile("note.md"));
-        const timer = jest.spyOn(activeWindow, "setTimeout");
+        const timer = jest.spyOn(window, "setTimeout");
         await plugin.openFloatingNote(true);
         expect(timer).toHaveBeenCalledWith(expect.any(Function), 200);
         const leaf = (plugin.app.workspace.openPopoutLeaf as jest.Mock).mock.results[0].value;
@@ -333,6 +358,25 @@ describe("openFloatingNote", () => {
             "--titlebar-background-focused": "var(--background-secondary-alt)",
         });
         timer.mockRestore();
+    });
+
+    it.each([true, false])("opens ready to type (createNew=%s) without stealing focus later", async (createNew) => {
+        const plugin = makePlugin();
+        await plugin.loadSettings();
+        plugin.settings.noteFolder = "";
+        const file = mkTFile("note.md");
+        (plugin.app.vault.getAbstractFileByPath as jest.Mock).mockReturnValue(null);
+        (plugin.app.vault.create as jest.Mock).mockResolvedValue(file);
+        await plugin.openFloatingNote(createNew);
+        const leaf = (plugin.app.workspace.openPopoutLeaf as jest.Mock).mock.results[0].value;
+        expect(leaf.openFile).toHaveBeenCalledWith(file, { active: true, state: { mode: "source" } });
+        expect(plugin.app.workspace.setActiveLeaf).toHaveBeenCalledWith(leaf, { focus: true });
+        expect(leaf.view.editor.setCursor).toHaveBeenCalledWith({ line: 2, ch: 13 });
+        expect(leaf.view.editor.focus).toHaveBeenCalledTimes(1);
+        leaf.view.containerEl.ownerDocument.hasFocus.mockReturnValue(false);
+        jest.advanceTimersByTime(200);
+        expect(leaf.view.editor.focus).toHaveBeenCalledTimes(1);
+        expect(leaf.view.editor.setCursor).toHaveBeenCalledTimes(1);
     });
 });
 

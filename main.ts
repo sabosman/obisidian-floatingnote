@@ -1,5 +1,6 @@
 import {
   App,
+  MarkdownView,
   moment,
   Notice,
   Plugin,
@@ -50,8 +51,15 @@ interface ElectronRemoteImport {
   };
 }
 
-const runtimeRequire: NodeJS.Require | null =
-  typeof require === "function" ? require : null;
+// Only this runtime loader signature is needed; avoid depending on Node's
+// ambient Require interface, which is absent in some review environments.
+type RuntimeRequire = (id: string) => unknown;
+const runtimeRequire: RuntimeRequire | null =
+  typeof require === "function" ? require as RuntimeRequire : null;
+
+// Obsidian supplies Moment at runtime. Describe the small callable surface we
+// use independently of Moment's namespace/export-assignment interoperability.
+const currentMoment = moment as unknown as () => { format(pattern: string): string };
 
 const LEGACY_DEFAULT_SETTINGS = {
   noteFolder: "Call Notes",
@@ -116,12 +124,25 @@ export default class FloatingNotePlugin extends Plugin {
       },
     });
 
-    await leaf.openFile(file, { active: true });
+    await leaf.openFile(file, { active: true, state: { mode: "source" } });
+    const view = leaf.view;
+    if (view instanceof MarkdownView) {
+      this.app.workspace.setActiveLeaf(leaf, { focus: true });
+      view.containerEl.ownerDocument.defaultView?.focus();
+      const line = view.editor.lastLine();
+      view.editor.setCursor({ line, ch: view.editor.getLine(line).length });
+      view.editor.focus();
+    }
 
     // Give Electron a moment to create and focus the new window
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       this.lightenPopoutHeaderBar(leaf);
       this.applyWindowSettings();
+      // Restore focus after popout setup only if the user has not switched away.
+      if (leaf.view === view && view instanceof MarkdownView &&
+          view.containerEl.ownerDocument.hasFocus()) {
+        view.editor.focus();
+      }
     }, 200);
   }
 
@@ -197,10 +218,10 @@ export default class FloatingNotePlugin extends Plugin {
 
   private async createNewQuickNote(): Promise<TFile | null> {
     const folder = this.settings.noteFolder;
-    const title = moment().format(this.settings.noteTitleFormat);
+    const title = currentMoment().format(this.settings.noteTitleFormat);
     const content = this.settings.defaultNoteContent.replace(
       "{{date}}",
-      moment().format("YYYY-MM-DD HH:mm")
+      currentMoment().format("YYYY-MM-DD HH:mm")
     );
 
     await this.ensureFolderExists(folder);
@@ -224,7 +245,7 @@ export default class FloatingNotePlugin extends Plugin {
 
   private async getOrCreateTodaysQuickNote(): Promise<TFile | null> {
     const folder = this.settings.noteFolder;
-    const title = moment().format("YYYY-MM-DD") + " Quick Notes";
+    const title = currentMoment().format("YYYY-MM-DD") + " Quick Notes";
     const path = folder ? `${folder}/${title}.md` : `${title}.md`;
 
     const existing = this.app.vault.getAbstractFileByPath(path);
@@ -234,7 +255,7 @@ export default class FloatingNotePlugin extends Plugin {
 
     const content = this.settings.defaultNoteContent.replace(
       "{{date}}",
-      moment().format("YYYY-MM-DD")
+      currentMoment().format("YYYY-MM-DD")
     );
 
     await this.ensureFolderExists(folder);
@@ -307,12 +328,64 @@ export default class FloatingNotePlugin extends Plugin {
   }
 }
 
-class FloatingNoteSettingTab extends PluginSettingTab {
+export class FloatingNoteSettingTab extends PluginSettingTab {
   plugin: FloatingNotePlugin;
 
   constructor(app: App, plugin: FloatingNotePlugin) {
     super(app, plugin);
     this.plugin = plugin;
+  }
+
+  // Obsidian 1.13+ indexes these controls for search and persists their values.
+  // Older versions continue to use display() below (minimum version: 1.4.0).
+  getSettingDefinitions() {
+    return [
+      {
+        type: "group" as const,
+        heading: "Note preferences",
+        items: [
+          {
+            name: "Notes folder",
+            desc: "Folder where quick notes are saved. Leave blank for vault root.",
+            control: { type: "text" as const, key: "noteFolder", placeholder: "Quick notes" },
+          },
+          {
+            name: "New note title format",
+            desc: "Moment.js date format for new notes opened via 'Open new note'. Wrap plain text in square brackets (e.g. [Note]).",
+            control: { type: "text" as const, key: "noteTitleFormat", placeholder: "[Quick] - YYYY-MM-DD HH[h]mm" },
+          },
+          {
+            name: "Default note content",
+            desc: "Template for new notes. Use {{date}} for the current date/time.",
+            control: { type: "textarea" as const, key: "defaultNoteContent" },
+          },
+        ],
+      },
+      {
+        type: "group" as const,
+        heading: "Window",
+        items: [
+          {
+            name: "Always on top",
+            desc: "Keep the floating note window above other windows.",
+            control: { type: "toggle" as const, key: "alwaysOnTop" },
+          },
+          {
+            name: "Window width (px)",
+            control: { type: "slider" as const, key: "windowWidth", min: 300, max: 1200, step: 20 },
+          },
+          {
+            name: "Window height (px)",
+            control: { type: "slider" as const, key: "windowHeight", min: 200, max: 1000, step: 20 },
+          },
+          {
+            name: "Window opacity (%)",
+            desc: "Make the window slightly transparent (100 = fully opaque).",
+            control: { type: "slider" as const, key: "opacity", min: 30, max: 100, step: 5 },
+          },
+        ],
+      },
+    ];
   }
 
   display(): void {

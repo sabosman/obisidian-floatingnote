@@ -28,22 +28,32 @@ export class Notice {
 }
 
 // ── WorkspaceLeaf stub ────────────────────────────────────────────────────
-export class WorkspaceLeaf {
-    view = {
-        containerEl: {
+export class MarkdownView {
+        editor = {
+            lastLine: jest.fn().mockReturnValue(2),
+            getLine: jest.fn().mockReturnValue("Existing text"),
+            setCursor: jest.fn(),
+            focus: jest.fn(),
+        };
+        containerEl = {
             ownerDocument: {
+                defaultView: { focus: jest.fn() },
+                hasFocus: jest.fn().mockReturnValue(true),
                 documentElement: {
                     setCssProps: jest.fn(),
                 },
             },
-        },
-    };
+        };
+}
+export class WorkspaceLeaf {
+    view = new MarkdownView();
     openFile = jest.fn().mockResolvedValue(undefined);
 }
 
 // ── App stub ──────────────────────────────────────────────────────────────
 export class App {
     workspace = {
+        setActiveLeaf: jest.fn(),
         openPopoutLeaf: jest.fn().mockReturnValue(new WorkspaceLeaf()),
     };
     vault = {

@@ -24,11 +24,13 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // main.ts
 var main_exports = {};
 __export(main_exports, {
+  FloatingNoteSettingTab: () => FloatingNoteSettingTab,
   default: () => FloatingNotePlugin
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
 var runtimeRequire = typeof require === "function" ? require : null;
+var currentMoment = import_obsidian.moment;
 var LEGACY_DEFAULT_SETTINGS = {
   noteFolder: "Call Notes",
   noteTitleFormat: "Call - YYYY-MM-DD HH[h]mm",
@@ -62,6 +64,7 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
     this.addSettingTab(new FloatingNoteSettingTab(this.app, this));
   }
   async openFloatingNote(createNew) {
+    var _a;
     const file = createNew ? await this.createNewQuickNote() : await this.getOrCreateTodaysQuickNote();
     if (!file) {
       new import_obsidian.Notice("Failed to create or find a quick note.");
@@ -73,10 +76,21 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
         height: this.settings.windowHeight
       }
     });
-    await leaf.openFile(file, { active: true });
-    activeWindow.setTimeout(() => {
+    await leaf.openFile(file, { active: true, state: { mode: "source" } });
+    const view = leaf.view;
+    if (view instanceof import_obsidian.MarkdownView) {
+      this.app.workspace.setActiveLeaf(leaf, { focus: true });
+      (_a = view.containerEl.ownerDocument.defaultView) == null ? void 0 : _a.focus();
+      const line = view.editor.lastLine();
+      view.editor.setCursor({ line, ch: view.editor.getLine(line).length });
+      view.editor.focus();
+    }
+    window.setTimeout(() => {
       this.lightenPopoutHeaderBar(leaf);
       this.applyWindowSettings();
+      if (leaf.view === view && view instanceof import_obsidian.MarkdownView && view.containerEl.ownerDocument.hasFocus()) {
+        view.editor.focus();
+      }
     }, 200);
   }
   lightenPopoutHeaderBar(leaf) {
@@ -139,10 +153,10 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
   }
   async createNewQuickNote() {
     const folder = this.settings.noteFolder;
-    const title = (0, import_obsidian.moment)().format(this.settings.noteTitleFormat);
+    const title = currentMoment().format(this.settings.noteTitleFormat);
     const content = this.settings.defaultNoteContent.replace(
       "{{date}}",
-      (0, import_obsidian.moment)().format("YYYY-MM-DD HH:mm")
+      currentMoment().format("YYYY-MM-DD HH:mm")
     );
     await this.ensureFolderExists(folder);
     const MAX_ATTEMPTS = 100;
@@ -159,7 +173,7 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
   }
   async getOrCreateTodaysQuickNote() {
     const folder = this.settings.noteFolder;
-    const title = (0, import_obsidian.moment)().format("YYYY-MM-DD") + " Quick Notes";
+    const title = currentMoment().format("YYYY-MM-DD") + " Quick Notes";
     const path = folder ? `${folder}/${title}.md` : `${title}.md`;
     const existing = this.app.vault.getAbstractFileByPath(path);
     if (existing instanceof import_obsidian.TFile) {
@@ -167,7 +181,7 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
     }
     const content = this.settings.defaultNoteContent.replace(
       "{{date}}",
-      (0, import_obsidian.moment)().format("YYYY-MM-DD")
+      currentMoment().format("YYYY-MM-DD")
     );
     await this.ensureFolderExists(folder);
     return await this.app.vault.create(path, content);
@@ -236,6 +250,57 @@ var FloatingNoteSettingTab = class extends import_obsidian.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
+  }
+  // Obsidian 1.13+ indexes these controls for search and persists their values.
+  // Older versions continue to use display() below (minimum version: 1.4.0).
+  getSettingDefinitions() {
+    return [
+      {
+        type: "group",
+        heading: "Note preferences",
+        items: [
+          {
+            name: "Notes folder",
+            desc: "Folder where quick notes are saved. Leave blank for vault root.",
+            control: { type: "text", key: "noteFolder", placeholder: "Quick notes" }
+          },
+          {
+            name: "New note title format",
+            desc: "Moment.js date format for new notes opened via 'Open new note'. Wrap plain text in square brackets (e.g. [Note]).",
+            control: { type: "text", key: "noteTitleFormat", placeholder: "[Quick] - YYYY-MM-DD HH[h]mm" }
+          },
+          {
+            name: "Default note content",
+            desc: "Template for new notes. Use {{date}} for the current date/time.",
+            control: { type: "textarea", key: "defaultNoteContent" }
+          }
+        ]
+      },
+      {
+        type: "group",
+        heading: "Window",
+        items: [
+          {
+            name: "Always on top",
+            desc: "Keep the floating note window above other windows.",
+            control: { type: "toggle", key: "alwaysOnTop" }
+          },
+          {
+            name: "Window width (px)",
+            control: { type: "slider", key: "windowWidth", min: 300, max: 1200, step: 20 }
+          },
+          {
+            name: "Window height (px)",
+            control: { type: "slider", key: "windowHeight", min: 200, max: 1e3, step: 20 }
+          },
+          {
+            name: "Window opacity (%)",
+            desc: "Make the window slightly transparent (100 = fully opaque).",
+            control: { type: "slider", key: "opacity", min: 30, max: 100, step: 5 }
+          }
+        ]
+      }
+    ];
   }
   display() {
     const { containerEl } = this;
