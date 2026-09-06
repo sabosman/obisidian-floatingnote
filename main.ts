@@ -1,5 +1,6 @@
 import {
   App,
+  MarkdownView,
   moment,
   Notice,
   Plugin,
@@ -123,12 +124,25 @@ export default class FloatingNotePlugin extends Plugin {
       },
     });
 
-    await leaf.openFile(file, { active: true });
+    await leaf.openFile(file, { active: true, state: { mode: "source" } });
+    const view = leaf.view;
+    if (view instanceof MarkdownView) {
+      this.app.workspace.setActiveLeaf(leaf, { focus: true });
+      view.containerEl.ownerDocument.defaultView?.focus();
+      const line = view.editor.lastLine();
+      view.editor.setCursor({ line, ch: view.editor.getLine(line).length });
+      view.editor.focus();
+    }
 
     // Give Electron a moment to create and focus the new window
     window.setTimeout(() => {
       this.lightenPopoutHeaderBar(leaf);
       this.applyWindowSettings();
+      // Restore focus after popout setup only if the user has not switched away.
+      if (leaf.view === view && view instanceof MarkdownView &&
+          view.containerEl.ownerDocument.hasFocus()) {
+        view.editor.focus();
+      }
     }, 200);
   }
 

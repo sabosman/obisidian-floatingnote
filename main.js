@@ -64,6 +64,7 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
     this.addSettingTab(new FloatingNoteSettingTab(this.app, this));
   }
   async openFloatingNote(createNew) {
+    var _a;
     const file = createNew ? await this.createNewQuickNote() : await this.getOrCreateTodaysQuickNote();
     if (!file) {
       new import_obsidian.Notice("Failed to create or find a quick note.");
@@ -75,10 +76,21 @@ var FloatingNotePlugin = class extends import_obsidian.Plugin {
         height: this.settings.windowHeight
       }
     });
-    await leaf.openFile(file, { active: true });
+    await leaf.openFile(file, { active: true, state: { mode: "source" } });
+    const view = leaf.view;
+    if (view instanceof import_obsidian.MarkdownView) {
+      this.app.workspace.setActiveLeaf(leaf, { focus: true });
+      (_a = view.containerEl.ownerDocument.defaultView) == null ? void 0 : _a.focus();
+      const line = view.editor.lastLine();
+      view.editor.setCursor({ line, ch: view.editor.getLine(line).length });
+      view.editor.focus();
+    }
     window.setTimeout(() => {
       this.lightenPopoutHeaderBar(leaf);
       this.applyWindowSettings();
+      if (leaf.view === view && view instanceof import_obsidian.MarkdownView && view.containerEl.ownerDocument.hasFocus()) {
+        view.editor.focus();
+      }
     }, 200);
   }
   lightenPopoutHeaderBar(leaf) {

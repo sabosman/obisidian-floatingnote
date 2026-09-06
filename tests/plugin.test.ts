@@ -359,6 +359,25 @@ describe("openFloatingNote", () => {
         });
         timer.mockRestore();
     });
+
+    it.each([true, false])("opens ready to type (createNew=%s) without stealing focus later", async (createNew) => {
+        const plugin = makePlugin();
+        await plugin.loadSettings();
+        plugin.settings.noteFolder = "";
+        const file = mkTFile("note.md");
+        (plugin.app.vault.getAbstractFileByPath as jest.Mock).mockReturnValue(null);
+        (plugin.app.vault.create as jest.Mock).mockResolvedValue(file);
+        await plugin.openFloatingNote(createNew);
+        const leaf = (plugin.app.workspace.openPopoutLeaf as jest.Mock).mock.results[0].value;
+        expect(leaf.openFile).toHaveBeenCalledWith(file, { active: true, state: { mode: "source" } });
+        expect(plugin.app.workspace.setActiveLeaf).toHaveBeenCalledWith(leaf, { focus: true });
+        expect(leaf.view.editor.setCursor).toHaveBeenCalledWith({ line: 2, ch: 13 });
+        expect(leaf.view.editor.focus).toHaveBeenCalledTimes(1);
+        leaf.view.containerEl.ownerDocument.hasFocus.mockReturnValue(false);
+        jest.advanceTimersByTime(200);
+        expect(leaf.view.editor.focus).toHaveBeenCalledTimes(1);
+        expect(leaf.view.editor.setCursor).toHaveBeenCalledTimes(1);
+    });
 });
 
 // ── applyWindowSettings (Electron remote) ─────────────────────────────────
