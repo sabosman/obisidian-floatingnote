@@ -1,6 +1,6 @@
 {
   "name": "floating-quick-note",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "license": "MIT",
   "description": "Obsidian plugin for always-on-top floating quick notes",
   "main": "main.js",
